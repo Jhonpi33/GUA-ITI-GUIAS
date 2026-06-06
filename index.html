@@ -487,7 +487,14 @@
         </div>
         <div class="form-group">
           <label>Tu nombre (guía)</label>
-          <input type="text" id="f-guia" placeholder="Ej: Jhon Pimiento" />
+          <select id="f-tipo" onchange="actualizarFormulario()" placeholder="Ej: Jhon Pimiento" > 
+                <option value="">— Selecciona —</option>
+                <option value="Juan Diego">Juan Diego</option>
+                <option value="Santiago">Santiago</option>
+                <option value="Oscar">Oscar</option>
+                <option value="Ronald">Ronald</option>
+                <option value="JhonPi">JhonPi</option>
+            </select>
         </div>
         <div class="form-group">
           <label>Tipo de actividad</label>
