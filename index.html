@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guaiti — Registro de Guianzas</title>
+<link rel="stylesheet" href="styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+</head>
+<body>
+ 
+<header>
+  <div>
+    <div class="logo">Guai<span>ti</span></div>
+    <div class="header-sub">Registro de guianzas y recorridos</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="mostrarSeccion('registro')">＋ Registrar</button>
+    <button class="nav-tab" onclick="mostrarSeccion('historial')">Historial</button>
+    <button class="nav-tab" onclick="mostrarSeccion('config')">⚙ Config</button>
+  </div>
+</header>
+ 
+<div class="container">
+ 
+  <!-- SECCIÓN CONFIG -->
+  <div class="section active" id="sec-config" style="display:none">
+    <div class="form-card">
+      <div class="form-title">⚙ Configurar base de datos</div>
+      <p style="font-size:0.9rem; color:var(--gris); margin-bottom:1.25rem; line-height:1.6">
+        Esta app usa <strong>Supabase</strong> para guardar los datos en la nube gratis. Sigue los pasos abajo para configurarla una sola vez.
+      </p>
+ 
+      <div style="background:var(--gris-claro); border-radius:12px; padding:1.25rem; margin-bottom:1.25rem; font-size:0.88rem; line-height:1.8; color:var(--texto)">
+        <strong>Paso 1:</strong> Ve a <a href="https://supabase.com" target="_blank" style="color:var(--verde)">supabase.com</a> y crea una cuenta gratis.<br>
+        <strong>Paso 2:</strong> Crea un proyecto nuevo (escoge cualquier región).<br>
+        <strong>Paso 3:</strong> Ve a <em>SQL Editor</em> y pega este código para crear la tabla:
+        <pre style="background:white; border-radius:8px; padding:0.75rem; margin-top:0.5rem; font-size:0.78rem; overflow-x:auto; border:1px solid var(--borde)">CREATE TABLE guianzas (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  fecha date NOT NULL,
+  tipo text NOT NULL,
+  empresa text NOT NULL,
+  personas integer,
+  guia_nombre text NOT NULL,
+  otro_guia text,
+  pago_total numeric NOT NULL,
+  detalle_calculo text,
+  notas text,
+  creado_en timestamptz DEFAULT now()
+);</pre>
+        <strong>Paso 4:</strong> Ve a <em>Project Settings → API</em> y copia la <em>Project URL</em> y la <em>anon public key</em>.<br>
+        <strong>Paso 5:</strong> Pégalas abajo y guarda.
+      </div>
+ 
+      <div class="config-grid">
+        <div class="form-group">
+          <label>Supabase Project URL</label>
+          <input type="text" id="sb-url" placeholder="https://xxxx.supabase.co" />
+        </div>
+        <div class="form-group">
+          <label>Supabase Anon Key</label>
+          <input type="text" id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR..." />
+        </div>
+      </div>
+      <button class="btn-config" onclick="guardarConfig()">Guardar configuración</button>
+      <div class="config-ok" id="config-ok" style="display:none">✓ Configuración guardada. Ahora puedes registrar guianzas.</div>
+    </div>
+  </div>
+ 
+  <!-- SECCIÓN REGISTRO -->
+  <div class="section active" id="sec-registro">
+    <div class="config-card" id="banner-config" style="display:none">
+      <div class="config-title">⚠ Configura Supabase primero</div>
+      <p style="font-size:0.85rem; color:#92400e; margin-bottom:0.75rem">Para guardar los datos en la nube necesitas conectar tu base de datos. Es gratis y tarda 5 minutos.</p>
+      <button class="btn-config" onclick="mostrarSeccion('config')">Ir a configuración →</button>
+    </div>
+ 
+    <div class="form-card">
+      <div class="form-title">📋 Nueva guianza</div>
+ 
+      <div class="alert" id="alert-registro"></div>
+ 
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="f-fecha" />
+        </div>
+        <div class="form-group">
+          <label>Tu nombre (guía)</label>
+          <input type="text" id="f-guia" placeholder="Ej: Jhon Pimiento" />
+        </div>
+        <div class="form-group">
+          <label>Tipo de actividad</label>
+          <select id="f-tipo" onchange="actualizarFormulario()">
+            <option value="">— Selecciona —</option>
+            <option value="cueva_vaca">🦇 Cueva de la Vaca</option>
+            <option value="cueva_yeso">🪨 Cueva del Yeso</option>
+            <option value="cuatrimoto_1h">🏍 Cuatrimoto 1 hora</option>
+            <option value="cuatrimoto_2h">🏍🏍 Cuatrimoto 2 horas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Empresa que vendió</label>
+          <select id="f-empresa">
+            <option value="">— Selecciona —</option>
+            <option value="Explorer">Explorer</option>
+            <option value="Para Volar">Para Volar</option>
+            <option value="Brújula">Brújula</option>
+            <option value="Gua-iti">Gua-iti</option>
+          </select>
+        </div>
+ 
+        <div class="form-group" id="g-personas">
+          <label id="label-personas">Número de personas / motos</label>
+          <input type="number" id="f-personas" min="1" placeholder="0" oninput="calcularPago()" />
+        </div>
+ 
+        <div class="form-group">
+          <label>¿Fue con otro guía?</label>
+          <select id="f-otro-guia-check" onchange="toggleOtroGuia()">
+            <option value="no">No, fui solo</option>
+            <option value="si">Sí, fuimos dos</option>
+          </select>
+        </div>
+ 
+        <div class="form-group otro-guia-field full" id="campo-otro-guia">
+          <label>Nombre del otro guía</label>
+          <input type="text" id="f-otro-guia" placeholder="Ej: Carlos Gómez" />
+        </div>
+ 
+        <div class="form-group full">
+          <label>Notas (opcional)</label>
+          <textarea id="f-notas" rows="2" placeholder="Observaciones del recorrido..."></textarea>
+        </div>
+      </div>
+ 
+      <div class="calculo-preview" id="calculo-preview" style="display:none">
+        <div>
+          <div class="calculo-label">Tu pago por esta guianza</div>
+          <div class="calculo-detalle" id="calculo-detalle"></div>
+        </div>
+        <div class="calculo-valor" id="calculo-valor">$0</div>
+      </div>
+ 
+      <button class="btn-guardar" id="btn-guardar" onclick="guardarRegistro()">Guardar guianza</button>
+    </div>
+  </div>
+ 
+  <!-- SECCIÓN HISTORIAL -->
+  <div class="section" id="sec-historial">
+    <div class="resumen-cards" id="resumen-cards">
+      <div class="resumen-card">
+        <div class="resumen-card-label">Total ganado</div>
+        <div class="resumen-card-valor" id="res-total">$0</div>
+      </div>
+      <div class="resumen-card">
+        <div class="resumen-card-label">Guianzas hechas</div>
+        <div class="resumen-card-valor" id="res-count">0</div>
+      </div>
+      <div class="resumen-card">
+        <div class="resumen-card-label">Personas guiadas</div>
+        <div class="resumen-card-valor" id="res-personas">0</div>
+      </div>
+    </div>
+ 
+    <div class="filtros">
+      <span class="filtros-label">Filtrar:</span>
+      <select id="filtro-tipo" onchange="cargarHistorial()">
+        <option value="">Todas las actividades</option>
+        <option value="cueva_vaca">Cueva de la Vaca</option>
+        <option value="cueva_yeso">Cueva del Yeso</option>
+        <option value="cuatrimoto_1h">Cuatrimoto 1h</option>
+        <option value="cuatrimoto_2h">Cuatrimoto 2h</option>
+      </select>
+      <select id="filtro-empresa" onchange="cargarHistorial()">
+        <option value="">Todas las empresas</option>
+        <option value="Explorer">Explorer</option>
+        <option value="Para Volar">Para Volar</option>
+        <option value="Brújula">Brújula</option>
+        <option value="Gua-iti">Gua-iti</option>
+      </select>
+      <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="width:auto; font-size:0.85rem; padding:0.45rem 0.75rem" />
+    </div>
+ 
+    <div class="tabla-wrap">
+      <div class="loading" id="historial-loading">Cargando registros...</div>
+      <table id="tabla-historial" style="display:none">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Actividad</th>
+            <th>Empresa</th>
+            <th>Personas</th>
+            <th>Guías</th>
+            <th>Tu pago</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-historial"></tbody>
+      </table>
+      <div class="empty-state" id="historial-empty" style="display:none">
+        <div class="empty-state-icon">📋</div>
+        <div>No hay registros todavía.<br><span style="font-size:0.85rem">¡Agrega tu primera guianza!</span></div>
+      </div>
+    </div>
+  </div>
+ 
+</div>
+ 
+<script>
+// =====================
+//  CONFIG SUPABASE
+// =====================
+let SB_URL = localStorage.getItem('guaiti_url') || '';
+let SB_KEY = localStorage.getItem('guaiti_key') || '';
+ 
+function guardarConfig() {
+  SB_URL = document.getElementById('sb-url').value.trim();
+  SB_KEY = document.getElementById('sb-key').value.trim();
+  if (!SB_URL || !SB_KEY) { alert('Ingresa la URL y la Key'); return; }
+  localStorage.setItem('guaiti_url', SB_URL);
+  localStorage.setItem('guaiti_key', SB_KEY);
+  document.getElementById('config-ok').style.display = 'block';
+  document.getElementById('banner-config').style.display = 'none';
+}
+ 
+function sbHeaders() {
+  return {
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+}
+ 
+// =====================
+//  NAVEGACIÓN
+// =====================
+function mostrarSeccion(sec) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('sec-' + sec).classList.add('active');
+  event.target.classList.add('active');
+  if (sec === 'historial') cargarHistorial();
+}
+ 
+// =====================
+//  LÓGICA DE PAGOS
+// =====================
+function calcularPago() {
+  const tipo = document.getElementById('f-tipo').value;
+  const personas = parseInt(document.getElementById('f-personas').value) || 0;
+  const dosGuias = document.getElementById('f-otro-guia-check').value === 'si';
+  
+  if (!tipo || personas < 1) {
+    document.getElementById('calculo-preview').style.display = 'none';
+    return { pago: 0, detalle: '' };
+  }
+ 
+  let pago = 0;
+  let detalle = '';
+ 
+  if (tipo === 'cueva_vaca') {
+    if (personas === 1) {
+      pago = 10000;
+      detalle = '1 persona = $10.000 (tarifa mínima)';
+    } else {
+      pago = personas * 7000;
+      detalle = `${personas} personas × $7.000 = $${pago.toLocaleString('es-CO')}`;
+    }
+  } else if (tipo === 'cueva_yeso') {
+    if (personas < 5) {
+      mostrarAlerta('registro', 'La Cueva del Yeso no es rentable con menos de 5 personas.', 'error');
+      document.getElementById('calculo-preview').style.display = 'none';
+      return { pago: 0, detalle: '' };
+    }
+    pago = personas * 20000;
+    detalle = `${personas} personas × $20.000 = $${pago.toLocaleString('es-CO')}`;
+  } else if (tipo === 'cuatrimoto_1h') {
+    if (personas === 1) {
+      pago = 10000;
+      detalle = '1 moto = $10.000';
+    } else if (personas < 5) {
+      pago = personas * 8000;
+      detalle = `${personas} motos × $8.000 = $${pago.toLocaleString('es-CO')}`;
+    } else {
+      const total = personas * 8000;
+      pago = dosGuias ? Math.floor(total / 2) : total;
+      detalle = `${personas} motos × $8.000 = $${total.toLocaleString('es-CO')}${dosGuias ? ' ÷ 2 guías = $' + pago.toLocaleString('es-CO') : ' (solo tú)'}`;
+    }
+  } else if (tipo === 'cuatrimoto_2h') {
+    if (personas === 1) {
+      pago = 12000;
+      detalle = '1 moto = $12.000';
+    } else if (personas < 5) {
+      pago = personas * 12000;
+      detalle = `${personas} motos × $12.000 = $${pago.toLocaleString('es-CO')}`;
+    } else {
+      const total = personas * 12000;
+      pago = dosGuias ? Math.floor(total / 2) : total;
+      detalle = `${personas} motos × $12.000 = $${total.toLocaleString('es-CO')}${dosGuias ? ' ÷ 2 guías = $' + pago.toLocaleString('es-CO') : ' (solo tú)'}`;
+    }
+  }
+ 
+  limpiarAlerta('registro');
+  document.getElementById('calculo-preview').style.display = 'flex';
+  document.getElementById('calculo-valor').textContent = '$' + pago.toLocaleString('es-CO');
+  document.getElementById('calculo-detalle').textContent = detalle;
+  return { pago, detalle };
+}
+ 
+function actualizarFormulario() {
+  const tipo = document.getElementById('f-tipo').value;
+  const lbl = document.getElementById('label-personas');
+  if (tipo.startsWith('cuatrimoto')) {
+    lbl.textContent = 'Número de motos';
+  } else {
+    lbl.textContent = 'Número de personas';
+  }
+  calcularPago();
+}
+ 
+function toggleOtroGuia() {
+  const val = document.getElementById('f-otro-guia-check').value;
+  document.getElementById('campo-otro-guia').style.display = val === 'si' ? 'grid' : 'none';
+  calcularPago();
+}
+ 
+// =====================
+//  GUARDAR REGISTRO
+// =====================
+async function guardarRegistro() {
+  const fecha = document.getElementById('f-fecha').value;
+  const guia = document.getElementById('f-guia').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+  const empresa = document.getElementById('f-empresa').value;
+  const personas = parseInt(document.getElementById('f-personas').value) || 0;
+  const dosGuias = document.getElementById('f-otro-guia-check').value === 'si';
+  const otroGuia = document.getElementById('f-otro-guia').value.trim();
+  const notas = document.getElementById('f-notas').value.trim();
+ 
+  if (!fecha || !guia || !tipo || !empresa || personas < 1) {
+    mostrarAlerta('registro', 'Completa todos los campos obligatorios.', 'error');
+    return;
+  }
+  if (dosGuias && !otroGuia) {
+    mostrarAlerta('registro', 'Escribe el nombre del otro guía.', 'error');
+    return;
+  }
+  if (!SB_URL || !SB_KEY) {
+    mostrarAlerta('registro', 'Primero configura Supabase en la pestaña ⚙ Config.', 'error');
+    return;
+  }
+ 
+  const { pago, detalle } = calcularPago();
+  if (pago === 0) return;
+ 
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+ 
+  const data = {
+    fecha, tipo, empresa, personas,
+    guia_nombre: guia,
+    otro_guia: dosGuias ? otroGuia : null,
+    pago_total: pago,
+    detalle_calculo: detalle,
+    notas: notas || null
+  };
+ 
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/guianzas`, {
+      method: 'POST',
+      headers: sbHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    mostrarAlerta('registro', '✓ Guianza guardada correctamente.', 'success');
+    limpiarFormulario();
+  } catch (e) {
+    mostrarAlerta('registro', 'Error al guardar: ' + e.message, 'error');
+  }
+ 
+  btn.disabled = false;
+  btn.textContent = 'Guardar guianza';
+}
+ 
+function limpiarFormulario() {
+  ['f-fecha','f-guia','f-personas','f-notas','f-otro-guia'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-tipo').value = '';
+  document.getElementById('f-empresa').value = '';
+  document.getElementById('f-otro-guia-check').value = 'no';
+  document.getElementById('campo-otro-guia').style.display = 'none';
+  document.getElementById('calculo-preview').style.display = 'none';
+}
+ 
+// =====================
+//  HISTORIAL
+// =====================
+async function cargarHistorial() {
+  if (!SB_URL || !SB_KEY) {
+    document.getElementById('historial-loading').textContent = 'Configura Supabase primero.';
+    return;
+  }
+ 
+  document.getElementById('historial-loading').style.display = 'block';
+  document.getElementById('tabla-historial').style.display = 'none';
+  document.getElementById('historial-empty').style.display = 'none';
+ 
+  let url = `${SB_URL}/rest/v1/guianzas?order=fecha.desc,creado_en.desc`;
+  const filtroTipo = document.getElementById('filtro-tipo').value;
+  const filtroEmpresa = document.getElementById('filtro-empresa').value;
+  const filtroMes = document.getElementById('filtro-mes').value;
+ 
+  if (filtroTipo) url += `&tipo=eq.${filtroTipo}`;
+  if (filtroEmpresa) url += `&empresa=eq.${encodeURIComponent(filtroEmpresa)}`;
+  if (filtroMes) {
+    const [y, m] = filtroMes.split('-');
+    const desde = `${y}-${m}-01`;
+    const hasta = new Date(y, m, 0).toISOString().slice(0,10);
+    url += `&fecha=gte.${desde}&fecha=lte.${hasta}`;
+  }
+ 
+  try {
+    const res = await fetch(url, { headers: sbHeaders() });
+    const rows = await res.json();
+    renderHistorial(rows);
+  } catch(e) {
+    document.getElementById('historial-loading').textContent = 'Error cargando datos.';
+  }
+}
+ 
+function renderHistorial(rows) {
+  document.getElementById('historial-loading').style.display = 'none';
+ 
+  if (!rows.length) {
+    document.getElementById('historial-empty').style.display = 'block';
+    document.getElementById('res-total').textContent = '$0';
+    document.getElementById('res-count').textContent = '0';
+    document.getElementById('res-personas').textContent = '0';
+    return;
+  }
+ 
+  const total = rows.reduce((s, r) => s + r.pago_total, 0);
+  const totalPersonas = rows.reduce((s, r) => s + (r.personas || 0), 0);
+  document.getElementById('res-total').textContent = '$' + total.toLocaleString('es-CO');
+  document.getElementById('res-count').textContent = rows.length;
+  document.getElementById('res-personas').textContent = totalPersonas;
+ 
+  const tipoLabel = { cueva_vaca: 'Cueva Vaca', cueva_yeso: 'Cueva Yeso', cuatrimoto_1h: 'Cuatrimoto 1h', cuatrimoto_2h: 'Cuatrimoto 2h' };
+  const tipoClass = { cueva_vaca: 'badge-vaca', cueva_yeso: 'badge-yeso', cuatrimoto_1h: 'badge-cuatri1', cuatrimoto_2h: 'badge-cuatri2' };
+ 
+  const tbody = document.getElementById('tbody-historial');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${formatFecha(r.fecha)}</td>
+      <td><span class="badge ${tipoClass[r.tipo]}">${tipoLabel[r.tipo]}</span></td>
+      <td>${r.empresa}</td>
+      <td style="text-align:center">${r.personas || '—'}</td>
+      <td>${r.guia_nombre}${r.otro_guia ? '<br><span style="font-size:0.78rem;color:var(--gris)">+ ' + r.otro_guia + '</span>' : ''}</td>
+      <td class="pago-col">$${r.pago_total.toLocaleString('es-CO')}</td>
+      <td><button class="btn-eliminar" onclick="eliminarRegistro('${r.id}')" title="Eliminar">✕</button></td>
+    </tr>
+  `).join('');
+ 
+  document.getElementById('tabla-historial').style.display = 'table';
+}
+ 
+async function eliminarRegistro(id) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/guianzas?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: sbHeaders()
+    });
+    cargarHistorial();
+  } catch(e) { alert('Error al eliminar'); }
+}
+ 
+function formatFecha(f) {
+  if (!f) return '';
+  const [y, m, d] = f.split('-');
+  return `${d}/${m}/${y}`;
+}
+ 
+// =====================
+//  ALERTAS
+// =====================
+function mostrarAlerta(sec, msg, tipo) {
+  const el = document.getElementById('alert-' + sec);
+  el.textContent = msg;
+  el.className = 'alert ' + tipo;
+  el.style.display = 'block';
+  if (tipo === 'success') setTimeout(() => el.style.display = 'none', 3000);
+}
+ 
+function limpiarAlerta(sec) {
+  const el = document.getElementById('alert-' + sec);
+  el.style.display = 'none';
+}
+ 
+// =====================
+//  INIT
+// =====================
+window.addEventListener('load', () => {
+  // Poner fecha de hoy por defecto
+  document.getElementById('f-fecha').value = new Date().toISOString().slice(0,10);
+ 
+  // Cargar config guardada
+  if (SB_URL) document.getElementById('sb-url').value = SB_URL;
+  if (SB_KEY) document.getElementById('sb-key').value = SB_KEY;
+ 
+  // Mostrar banner si falta config
+  if (!SB_URL || !SB_KEY) {
+    document.getElementById('banner-config').style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>
+ 
